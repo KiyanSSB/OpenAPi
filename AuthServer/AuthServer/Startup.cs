@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using AuthorizationServer;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
@@ -50,20 +51,37 @@ namespace AuthServer
                 {
                     //Añadimos que el servidor soporte el "Client Credentials" Flow
                     options.AllowClientCredentialsFlow();
+
+                    //Añadimos que el servidor soporte el "Authorization Code Pkce" Flow , el RequireProof es para asegurar que todos los clientes usan PKCE 
+                    options.AllowAuthorizationCodeFlow().RequireProofKeyForCodeExchange();
+                    //Colocamos los endpoints para hacer las peticiones para coger las autorizaciones y los token
+                    options.SetAuthorizationEndpointUris("/connect/authorize").SetTokenEndpointUris("/connect/token");
+
                     //Indicamos el endpoint desde el cual se obtiene el token ES NECESARIO PARA EL CLIENT CREDENTIALS FLOW
                     options.SetTokenEndpointUris("/connect/token");
+
+                    options.SetUserinfoEndpointUris("/connect/userinfo");
+                   
                     //Encriptamos y firmamos los tokens
                     options.
                         AddEphemeralEncryptionKey().
-                        AddEphemeralSigningKey();
+                        AddEphemeralSigningKey().
+                        DisableAccessTokenEncryption();
+                        
                     //Registra el scope
                     options.RegisterScopes("api");
                     //Registra el ASPNET Core Host y configura ASP.NET
                     options
                         .UseAspNetCore()
-                        //Configura ASPNET para que el token lo gestione OpenIddict
-                        .EnableTokenEndpointPassthrough();
+                        //Configura ASPNET para que el token lo gestione OpenIddict y podamos crear nosotros el endpoint con un controlador
+                        .EnableTokenEndpointPassthrough()
+                        //Configuramos ASPNET para que la autenticación la gestione OpenIddict
+                        .EnableAuthorizationEndpointPassthrough()
+                        //Configuramos ASPNET para que el userinfo lo gestiones Openiddict
+                        .EnableUserinfoEndpointPassthrough();
                 });
+
+            services.AddHostedService<TestData>();
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
